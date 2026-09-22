@@ -227,6 +227,22 @@
   .cycle-tab.active { background: var(--brand); border-color: var(--brand); color: #fff; }
   .cycle-label { font-size: .74rem; color: var(--ink-soft); margin-bottom: 12px; }
 
+  .doc-modal {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    background: rgba(22,35,46,.45); backdrop-filter: blur(2px);
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .doc-modal-box {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    max-width: 480px; width: 100%; max-height: 80vh; overflow: auto;
+    padding: 20px 24px; display: flex; flex-direction: column;
+  }
+  .doc-modal-icon { font-size: 2rem; margin-bottom: 6px; }
+  .doc-modal-box h3 { font-size: 1.05rem; margin-bottom: 4px; }
+  .doc-modal-date { font-size: .78rem; color: var(--ink-soft); margin-bottom: 12px; }
+  .doc-modal-body { font-size: .9rem; }
+  .doc-modal-body p { margin-bottom: 8px; }
+
   @media (max-width: 1100px) {
     .layout { grid-template-columns: 1fr 1fr; }
     .layout > .card:first-child { grid-column: 1 / -1; }
@@ -329,11 +345,6 @@
     <div id="upcoming-events"></div>
   </main>
 
-  <aside class="card panel" id="panel-weekly">
-    <h2><span class="dot"></span><span id="t-weeklyTitle">Orario settimanale</span></h2>
-    <div id="weekly-content"></div>
-  </aside>
-
   <aside class="card panel" id="panel-canteen">
     <h2><span class="dot"></span><span id="t-canteenTitle">Menu mensa</span></h2>
     <div class="week-cycle-tabs" id="cycle-tabs"></div>
@@ -344,10 +355,20 @@
 
 <footer id="t-footer">International School of Siena — Portale Scuola-Famiglia</footer>
 
+<div class="doc-modal" id="doc-modal" onclick="if(event.target===this)closeDoc()">
+  <div class="doc-modal-box">
+    <button class="welcome-close" onclick="closeDoc()" style="align-self:flex-end" aria-label="Close">×</button>
+    <div id="doc-modal-icon" class="doc-modal-icon">📄</div>
+    <h3 id="doc-modal-title"></h3>
+    <div id="doc-modal-date" class="doc-modal-date"></div>
+    <div id="doc-modal-body" class="doc-modal-body"></div>
+  </div>
+</div>
+
 <nav class="tabbar" id="tabbar">
   <button class="tab-btn active" data-panel="panel-monthly"><span class="tab-icon">📅</span><span data-tab="monthly">Calendario</span></button>
   <button class="tab-btn" data-panel="panel-content"><span class="tab-icon">📋</span><span data-tab="content">Contenuti</span></button>
-  <button class="tab-btn" data-panel="panel-weekly"><span class="tab-icon">🗓️</span><span data-tab="weekly">Orario</span></button>
+  <button class="tab-btn" data-panel="panel-content"><span class="tab-icon">📋</span><span data-tab="content">Contenuti</span></button>
   <button class="tab-btn" data-panel="panel-canteen"><span class="tab-icon">🍽️</span><span data-tab="canteen">Mensa</span></button>
 </nav>
 
@@ -438,37 +459,6 @@ const T = {
     months:['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'] }
 };
 
-// ---------------- Subject pool (per language) ----------------
-const SUBJECTS = {
-  en: ['Mathematics','Reading','Writing','Science','History','Geography','Art','Music','Physical Education','English','IT'],
-  fr: ['Mathématiques','Lecture','Écriture','Sciences','Histoire','Géographie','Arts','Musique','Éducation physique','Français','Informatique'],
-  it: ['Matematica','Lettura','Scrittura','Scienze','Storia','Geografia','Arte','Musica','Educazione fisica','Italiano','Informatica'],
-  de: ['Mathematik','Lesen','Schreiben','Naturwissenschaften','Geschichte','Erdkunde','Kunst','Musik','Sport','Deutsch','Informatik'],
-  ru: ['Математика','Чтение','Письмо','Естествознание','История','География','Искусство','Музыка','Физкультура','Русский язык','Информатика']
-};
-const SLOTS = ['08:30–09:30','09:45–10:45','11:00–12:00','13:30–14:30','14:45–15:45'];
-
-// Deterministic pseudo-random per (grade, day) so schedules are stable
-function seedRand(seed) {
-  let s = seed * 9301 + 49297;
-  return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
-}
-function buildSchedule(grade, lang) {
-  const pool = SUBJECTS[lang];
-  return T[lang].days.map((day, di) => {
-    const rnd = seedRand(grade * 100 + di + lang.length);
-    const count = 3 + Math.floor(rnd() * 2); // 3–4 lessons
-    const used = new Set(); const lessons = [];
-    while (lessons.length < count) {
-      const idx = Math.floor(rnd() * pool.length);
-      if (used.has(idx)) continue;
-      used.add(idx);
-      lessons.push({ name: pool[idx], time: SLOTS[lessons.length] });
-    }
-    return { day, lessons };
-  });
-}
-
 // ---------------- Data ----------------
 let lang = 'it';
 let currentGrade = '';
@@ -478,16 +468,18 @@ const today = new Date();
 let documents = [
   { title: { en:'School Calendar 2026–2027', fr:'Calendrier scolaire 2026–2027', it:'Calendario scolastico 2026–2027', de:'Schulkalender 2026–2027', ru:'Школьный календарь 2026–2027' }, date:'2026-08-15', unread:false, icon:'📅' },
   { title: { en:'Internal Regulations', fr:'Règlement intérieur', it:'Regolamento interno', de:'Hausordnung', ru:'Внутренний регламент' }, date:'2026-09-10', unread:false, icon:'📕' },
-  { title: { en:'Parent Weekly — Week of 21 September 2026', fr:'Parent Weekly — Semaine du 21 septembre 2026', it:'Parent Weekly — Settimana del 21 settembre 2026', de:'Parent Weekly — Woche vom 21. September 2026', ru:'Parent Weekly — неделя с 21 сентября 2026' }, date:'2026-09-21', unread:true, icon:'📰' },
-  { title: { en:'Canteen Menu — Spring–Summer 2026/27', fr:'Menu de la cantine — Printemps–Été 2026/27', it:'Menu mensa — Primavera–Estate 2026/27', de:'Mensa-Menü — Frühjahr–Sommer 2026/27', ru:'Меню столовой — Весна–Лето 2026/27' }, date:'2026-09-14', unread:true, icon:'🍽️' },
+  { title: { en:'Parent Weekly — Week of 21 September 2026', fr:'Parent Weekly — Semaine du 21 septembre 2026', it:'Parent Weekly — Settimana del 21 settembre 2026', de:'Parent Weekly — Woche vom 21. September 2026', ru:'Parent Weekly — неделя с 21 сентября 2026' }, date:'2026-09-21', unread:true, icon:'📰',
+    detail: { en:'Whole school: thank you for being on time — 09:00 for EY/PYP, 08:50 for MYP/DP. PYP: adult shirts wanted as art smocks (Mrs Bhogal). MYP: Principal meetings at break, cafeteria. DP: Unifrog Uni Fair for Grades 10–12.', fr:'Toute l\'école : merci d\'être à l\'heure — 9h00 pour EY/PYP, 8h50 pour MYP/DP. PYP : chemises d\'adulte recherchées comme blouses de peinture (Mme Bhogal). MYP : rencontres du Principal à la pause, cafétéria. DP : Unifrog Uni Fair pour les Classes 10–12.', it:'Tutta la scuola: grazie per la puntualità — 9:00 per EY/PYP, 8:50 per MYP/DP. PYP: cercasi camicie da adulto come camici per l\'arte (Mrs Bhogal). MYP: incontri con il Principal alla pausa, in cafeteria. DP: Unifrog Uni Fair per le Classi 10–12.', de:'Ganze Schule: Danke für die Pünktlichkeit — 9:00 (EY/PYP), 8:50 (MYP/DP). PYP: Hemden als Malerschürzen gesucht (Mrs Bhogal). MYP: Treffen mit dem Principal in der Pause, Cafeteria. DP: Unifrog Uni Fair für Klassen 10–12.', ru:'Вся школа: спасибо за пунктуальность — 9:00 (EY/PYP), 8:50 (MYP/DP). PYP: нужны рубашки для живописи (Mrs Bhogal). MYP: встречи с директором на перемене, кафетерий. DP: Unifrog Uni Fair для классов 10–12.' } },
+  { title: { en:'Canteen Menu — Spring–Summer 2026/27', fr:'Menu de la cantine — Printemps–Été 2026/27', it:'Menu mensa — Primavera–Estate 2026/27', de:'Mensa-Menü — Frühjahr–Sommer 2026/27', ru:'Меню столовой — Весна–Лето 2026/27' }, date:'2026-09-14', unread:true, icon:'🍽️',
+    detail: { en:'Camst 4-week cycle menus, Monday to Friday. See the Canteen tab for the full week-by-week menu.', fr:'Menus Camst en cycles de 4 semaines, du lundi au vendredi. Voir l\'onglet Cantine pour le menu semaine par semaine.', it:'Menu Camst a cicli di 4 settimane, dal lunedì al venerdì. Vedi la scheda Mensa per il menu settimana per settimana.', de:'Camst-Menüs in 4-Wochen-Zyklen, Montag bis Freitag. Vollständiges Menü im Reiter Mensa.', ru:'Меню Camst циклами по 4 недели, с понедельника по пятницу. Полное меню — на вкладке «Столовая».' } },
   { title: { en:'Supplies List', fr:'Liste des fournitures', it:'Lista materiali', de:'Materialliste', ru:'Список принадлежностей' }, date:'2026-09-01', unread:false, icon:'🎒' }
 ];
 let communications = [
   { title: { en:'Arrival times: 09:00 (EY/PYP), 08:50 (MYP/DP)', fr:'Horaires d\'arrivée : 9h00 (EY/PYP), 8h50 (MYP/DP)', it:'Orari di arrivo: 9:00 (EY/PYP), 8:50 (MYP/DP)', de:'Ankunftszeiten: 9:00 (EY/PYP), 8:50 (MYP/DP)', ru:'Время прихода: 9:00 (EY/PYP), 8:50 (MYP/DP)' }, date:'2026-09-21', unread:false, icon:'⏰' },
-  { title: { en:'Principal meetings with Grades 7–11 (cafeteria)', fr:'Rencontres du Principal avec les classes 7–11 (cafétéria)', it:'Incontri del Principal con le Classi 7–11 (cafeteria)', de:'Treffen des Principals mit den Klassen 7–11 (Cafeteria)', ru:'Встречи директора с классами 7–11 (кафетерий)' }, date:'2026-09-22', unread:true, icon:'👋' },
-  { title: { en:'School choir — all Grades 4–6 invited (Big Sing in Modena)', fr:'Chorale scolaire — Grades 4–6 invités (Big Sing à Modène)', it:'Coro scolastico — tutte le Classi 4–6 invitate (Big Sing a Modena)', de:'Schulchor — alle Klassen 4–6 eingeladen (Big Sing in Modena)', ru:'Школьный хор — классы 4–6 (Big Sing в Модене)' }, date:'2026-09-23', unread:true, icon:'🎶' },
-  { title: { en:'Unifrog Uni Fair — Grades 10–12, 10:00–12:30 (cafeteria)', fr:'Unifrog Uni Fair — Grades 10–12, 10h00–12h30 (cafétéria)', it:'Unifrog Uni Fair — Classi 10–12, 10:00–12:30 (cafeteria)', de:'Unifrog Uni Fair — Klassen 10–12, 10:00–12:30 (Cafeteria)', ru:'Unifrog Uni Fair — классы 10–12, 10:00–12:30' }, date:'2026-09-24', unread:true, icon:'🎓' },
-  { title: { en:'PYP — unwanted adult shirts wanted as art smocks', fr:'PYP — recherche de chemises d\'adulte comme blouses de peinture', it:'PYP — cercasi camicie da adulto da usare come camici per l\'arte', de:'PYP — erwachsene Hemden als Malerschürzen gesucht', ru:'PYP — нужны взрослые рубашки для занятий живописью' }, date:'2026-09-21', unread:false, icon:'🎨' }
+  { title: { en:'Principal meetings with Grades 7–11 (cafeteria)', fr:'Rencontres du Principal avec les classes 7–11 (cafétéria)', it:'Incontri del Principal con le Classi 7–11 (cafeteria)', de:'Treffen des Principals mit den Klassen 7–11 (Cafeteria)', ru:'Встречи директора с классами 7–11 (кафетерий)' }, date:'2026-09-22', unread:true, icon:'👋', grades:[7,8,9,10,11] },
+  { title: { en:'School choir — all Grades 4–6 invited (Big Sing in Modena)', fr:'Chorale scolaire — Grades 4–6 invités (Big Sing à Modène)', it:'Coro scolastico — tutte le Classi 4–6 invitate (Big Sing a Modena)', de:'Schulchor — alle Klassen 4–6 eingeladen (Big Sing in Modena)', ru:'Школьный хор — классы 4–6 (Big Sing в Модене)' }, date:'2026-09-23', unread:true, icon:'🎶', grades:[4,5,6] },
+  { title: { en:'Unifrog Uni Fair — Grades 10–12, 10:00–12:30 (cafeteria)', fr:'Unifrog Uni Fair — Grades 10–12, 10h00–12h30 (cafétéria)', it:'Unifrog Uni Fair — Classi 10–12, 10:00–12:30 (cafeteria)', de:'Unifrog Uni Fair — Klassen 10–12, 10:00–12:30 (Cafeteria)', ru:'Unifrog Uni Fair — классы 10–12, 10:00–12:30' }, date:'2026-09-24', unread:true, icon:'🎓', grades:[10,11,12] },
+  { title: { en:'PYP — unwanted adult shirts wanted as art smocks', fr:'PYP — recherche de chemises d\'adulte comme blouses de peinture', it:'PYP — cercasi camicie da adulto da usare come camici per l\'arte', de:'PYP — erwachsene Hemden als Malerschürzen gesucht', ru:'PYP — нужны взрослые рубашки для занятий живописью' }, date:'2026-09-21', unread:false, icon:'🎨', grades:[1,2,3,4,5] }
 ];
 const events = [
   { date:'2026-09-28', grades:[12], title:{ en:'Principal with Grade 12', fr:'Principal avec la Classe 12', it:'Principal con la Classe 12', de:'Principal mit Klasse 12', ru:'Директор с классом 12' } },
@@ -560,21 +552,49 @@ function renderGradeSelect() {
   sel.value = currentGrade;
 }
 
+function matchesGrade(item) {
+  if (!item.grades) return true;
+  const g = currentGrade ? +currentGrade : null;
+  return !g || item.grades.includes(g);
+}
+
 function renderLists() {
   const t = T[lang];
-  document.getElementById('documents-container').innerHTML = documents.map((d,i)=>`
-    <div class="item ${d.unread?'alert':''}" onclick="toggleUnread('documents',${i})">
+  const docs = documents.filter(matchesGrade);
+  const comms = communications.filter(matchesGrade);
+  document.getElementById('documents-container').innerHTML = docs.map(d=>`
+    <div class="item ${d.unread?'alert':''}" onclick="openDoc(${documents.indexOf(d)})">
       <div class="icon">${d.icon||'📄'}</div>
       <div><div class="title">${d.title[lang]||d.title.en}</div>
       <div class="date">${t.publishedOn} ${fmtDate(d.date)}</div></div>
     </div>`).join('');
-  document.getElementById('communications-container').innerHTML = communications.map((c,i)=>`
-    <div class="item ${c.unread?'alert':''}" onclick="toggleUnread('communications',${i})">
+  document.getElementById('communications-container').innerHTML = comms.map(c=>`
+    <div class="item ${c.unread?'alert':''}" onclick="toggleUnread('communications',${communications.indexOf(c)})">
       <div class="icon">${c.icon||'📧'}</div>
       <div><div class="title">${c.title[lang]||c.title.en}</div>
       <div class="date">${t.receivedOn} ${fmtDate(c.date)}</div></div>
     </div>`).join('');
   updateBadges();
+}
+
+function updateBadges() {
+  document.getElementById('doc-count').textContent = documents.filter(matchesGrade).length;
+  document.getElementById('comm-unread').textContent = communications.filter(c=>c.unread && matchesGrade(c)).length;
+}
+
+function openDoc(i) {
+  const d = documents[i];
+  d.unread = false;
+  renderLists();
+  document.getElementById('doc-modal-icon').textContent = d.icon || '📄';
+  document.getElementById('doc-modal-title').textContent = d.title[lang] || d.title.en;
+  document.getElementById('doc-modal-date').textContent = `${T[lang].publishedOn} ${fmtDate(d.date)}`;
+  document.getElementById('doc-modal-body').innerHTML = (d.detail ? `<p>${d.detail[lang]||d.detail.en}</p>` : '');
+  document.getElementById('doc-modal').style.display = 'flex';
+}
+
+function closeDoc() {
+  document.getElementById('doc-modal').style.display = 'none';
 }
 
 function toggleUnread(listName, i) {
@@ -585,20 +605,6 @@ function toggleUnread(listName, i) {
 function updateBadges() {
   document.getElementById('doc-count').textContent = documents.length;
   document.getElementById('comm-unread').textContent = communications.filter(c=>c.unread).length;
-}
-
-function renderWeekly() {
-  const el = document.getElementById('weekly-content');
-  if (!currentGrade) {
-    el.innerHTML = `<div class="empty-state"><div class="big">🗂️</div>${T[lang].noGrade}</div>`;
-    return;
-  }
-  const schedule = buildSchedule(+currentGrade, lang);
-  el.innerHTML = `<div class="week-grid">` + schedule.map(d=>`
-    <div class="day-col">
-      <div class="day-name">${d.day}</div>
-      ${d.lessons.map(l=>`<div class="lesson">${l.name}<span class="time">${l.time}</span></div>`).join('')}
-    </div>`).join('') + `</div>`;
 }
 
 let selectedDay = null; // ISO date or null
@@ -664,7 +670,7 @@ function renderTexts() {
   set('t-appTitle', t.appTitle); set('t-schoolSub', t.schoolSub); set('t-gradeLabel', t.gradeLabel);
   set('t-welcome', t.welcome);
   set('t-sidebarTitle', t.sidebarTitle); set('t-docsTitle', t.docsTitle); set('t-commsTitle', t.commsTitle);
-  set('t-addDoc', t.addDoc); set('t-addComm', t.addComm); set('t-weeklyTitle', t.weeklyTitle);
+  set('t-addDoc', t.addDoc); set('t-addComm', t.addComm);
   set('t-monthlyTitle', t.monthlyTitle); set('t-eventsTitle', t.eventsTitle);
   set('t-canteenTitle', t.canteenTitle);
   if (!selectedDay) document.getElementById('events-heading').textContent = t.eventsTitle;
@@ -675,7 +681,7 @@ function renderTexts() {
 }
 
 function renderAll() {
-  renderTexts(); renderGradeSelect(); renderLists(); renderWeekly(); renderCalendar(); renderEvents(); renderCanteen();
+  renderTexts(); renderGradeSelect(); renderLists(); renderCalendar(); renderEvents(); renderCanteen();
 }
 
 // ---------------- Actions ----------------
@@ -717,7 +723,7 @@ document.getElementById('tabbar').addEventListener('click', e => {
 document.getElementById('panel-monthly').classList.add('active');
 document.getElementById('grade-select').addEventListener('change', e => {
   currentGrade = e.target.value;
-  renderWeekly(); renderEvents(); renderCalendar();
+  renderEvents(); renderCalendar(); renderLists();
 });
 
 renderAll();
