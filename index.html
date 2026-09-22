@@ -186,6 +186,7 @@
     border-radius: 50%; background: var(--accent);
   }
   .cal-cell.today.event::after { background: #fff; }
+  .cal-cell.selected { outline: 2px solid var(--accent); outline-offset: -2px; font-weight: 700; }
 
   .event-row {
     display: flex; gap: 10px; padding: 10px; border-radius: 10px;
@@ -314,19 +315,7 @@
     <button class="add-btn" id="add-comm-btn" onclick="addItem('comm')">+ <span id="t-addComm">Aggiungi comunicazione</span></button>
   </aside>
 
-  <main class="card panel" id="panel-weekly">
-    <h2><span class="dot"></span><span id="t-weeklyTitle">Orario settimanale</span></h2>
-    <div id="weekly-content"></div>
-  </main>
-
-  <aside class="card panel" id="panel-canteen">
-    <h2><span class="dot"></span><span id="t-canteenTitle">Menu mensa</span></h2>
-    <div class="week-cycle-tabs" id="cycle-tabs"></div>
-    <div class="cycle-label" id="cycle-label"></div>
-    <div id="canteen-content"></div>
-  </aside>
-
-  <aside class="card panel" id="panel-monthly">
+  <main class="card panel" id="panel-monthly">
     <h2><span class="dot"></span><span id="t-monthlyTitle">Calendario mensile</span></h2>
     <div class="cal-nav">
       <button onclick="moveMonth(-1)" aria-label="prev">‹</button>
@@ -336,17 +325,29 @@
     <div class="cal-grid" id="cal-heads"></div>
     <div class="cal-grid" id="cal-days"></div>
 
-    <div class="section-label" style="margin-top:20px"><span id="t-eventsTitle">Eventi imminenti</span></div>
+    <div class="section-label" style="margin-top:20px"><span id="events-heading">Eventi imminenti</span></div>
     <div id="upcoming-events"></div>
+  </main>
+
+  <aside class="card panel" id="panel-weekly">
+    <h2><span class="dot"></span><span id="t-weeklyTitle">Orario settimanale</span></h2>
+    <div id="weekly-content"></div>
+  </aside>
+
+  <aside class="card panel" id="panel-canteen">
+    <h2><span class="dot"></span><span id="t-canteenTitle">Menu mensa</span></h2>
+    <div class="week-cycle-tabs" id="cycle-tabs"></div>
+    <div class="cycle-label" id="cycle-label"></div>
+    <div id="canteen-content"></div>
   </aside>
 </div>
 
 <footer id="t-footer">International School of Siena — Portale Scuola-Famiglia</footer>
 
 <nav class="tabbar" id="tabbar">
-  <button class="tab-btn active" data-panel="panel-content"><span class="tab-icon">📋</span><span data-tab="content">Contenuti</span></button>
+  <button class="tab-btn active" data-panel="panel-monthly"><span class="tab-icon">📅</span><span data-tab="monthly">Calendario</span></button>
+  <button class="tab-btn" data-panel="panel-content"><span class="tab-icon">📋</span><span data-tab="content">Contenuti</span></button>
   <button class="tab-btn" data-panel="panel-weekly"><span class="tab-icon">🗓️</span><span data-tab="weekly">Orario</span></button>
-  <button class="tab-btn" data-panel="panel-monthly"><span class="tab-icon">📅</span><span data-tab="monthly">Calendario</span></button>
   <button class="tab-btn" data-panel="panel-canteen"><span class="tab-icon">🍽️</span><span data-tab="canteen">Mensa</span></button>
 </nav>
 
@@ -376,7 +377,8 @@ const T = {
     monthlyTitle:'Calendar', eventsTitle:'Upcoming events', publishedOn:'Published', receivedOn:'Received',
     noGrade:'Select a grade to view the weekly schedule.', addPrompt:'Enter a title:',
     tabContent:'Content', tabWeekly:'Schedule', tabMonthly:'Calendar',
-    tabCanteen:'Canteen', canteenTitle:'Canteen menu',
+    tabCanteen:'Canteen', canteenTitle:'Canteen menu', noEvents:'No upcoming events for this grade.',
+    eventsOn:'Events on', showAllEvents:'Show all events',
     welcome:'Welcome to the ISS communication site',
     selectGrade:'— Select —',
     days:['Monday','Tuesday','Wednesday','Thursday','Friday'],
@@ -388,7 +390,8 @@ const T = {
     monthlyTitle:'Calendrier', eventsTitle:'Événements à venir', publishedOn:'Publié le', receivedOn:'Reçu le',
     noGrade:'Sélectionnez une classe pour afficher l\'emploi du temps.', addPrompt:'Entrez un titre :',
     tabContent:'Contenus', tabWeekly:'Emploi du temps', tabMonthly:'Calendrier',
-    tabCanteen:'Cantine', canteenTitle:'Menu de la cantine',
+    tabCanteen:'Cantine', canteenTitle:'Menu de la cantine', noEvents:'Aucun événement à venir pour cette classe.',
+    eventsOn:'Événements du', showAllEvents:'Afficher tous les événements',
     welcome:'Bienvenue sur le site de communication de l\u2019ISS',
     selectGrade:'— Choisir —',
     days:['Lundi','Mardi','Mercredi','Jeudi','Vendredi'],
@@ -400,7 +403,8 @@ const T = {
     monthlyTitle:'Calendario', eventsTitle:'Eventi imminenti', publishedOn:'Pubblicato il', receivedOn:'Ricevuto il',
     noGrade:'Seleziona una classe per visualizzare l\'orario settimanale.', addPrompt:'Inserisci un titolo:',
     tabContent:'Contenuti', tabWeekly:'Orario', tabMonthly:'Calendario',
-    tabCanteen:'Mensa', canteenTitle:'Menu mensa',
+    tabCanteen:'Mensa', canteenTitle:'Menu mensa', noEvents:'Nessun evento imminente per questa classe.',
+    eventsOn:'Eventi del', showAllEvents:'Mostra tutti gli eventi',
     welcome:'Benvenuti nel sito di comunicazione dell\u2019ISS',
     selectGrade:'— Seleziona —',
     days:['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì'],
@@ -412,7 +416,8 @@ const T = {
     monthlyTitle:'Kalender', eventsTitle:'Bevorstehende Veranstaltungen', publishedOn:'Veröffentlicht am', receivedOn:'Empfangen am',
     noGrade:'Bitte wählen Sie eine Klasse, um den Wochenplan zu sehen.', addPrompt:'Titel eingeben:',
     tabContent:'Inhalte', tabWeekly:'Wochenplan', tabMonthly:'Kalender',
-    tabCanteen:'Mensa', canteenTitle:'Mensa-Menü',
+    tabCanteen:'Mensa', canteenTitle:'Mensa-Menü', noEvents:'Keine bevorstehenden Veranstaltungen für diese Klasse.',
+    eventsOn:'Veranstaltungen am', showAllEvents:'Alle Veranstaltungen anzeigen',
     welcome:'Willkommen auf der Kommunikationsseite der ISS',
     selectGrade:'— Wählen —',
     days:['Montag','Dienstag','Mittwoch','Donnerstag','Freitag'],
@@ -424,7 +429,8 @@ const T = {
     monthlyTitle:'Календарь', eventsTitle:'Предстоящие события', publishedOn:'Опубликовано', receivedOn:'Получено',
     noGrade:'Выберите класс, чтобы увидеть расписание.', addPrompt:'Введите название:',
     tabContent:'Содержание', tabWeekly:'Расписание', tabMonthly:'Календарь',
-    tabCanteen:'Столовая', canteenTitle:'Меню столовой',
+    tabCanteen:'Столовая', canteenTitle:'Меню столовой', noEvents:'Для этого класса предстоящих событий нет.',
+    eventsOn:'События', showAllEvents:'Показать все события',
     welcome:'Добро пожаловать на сайт коммуникаций ISS',
     selectGrade:'— Выбрать —',
     days:['Понедельник','Вторник','Среда','Четверг','Пятница'],
@@ -484,17 +490,17 @@ let communications = [
   { title: { en:'PYP — unwanted adult shirts wanted as art smocks', fr:'PYP — recherche de chemises d\'adulte comme blouses de peinture', it:'PYP — cercasi camicie da adulto da usare come camici per l\'arte', de:'PYP — erwachsene Hemden als Malerschürzen gesucht', ru:'PYP — нужны взрослые рубашки для занятий живописью' }, date:'2026-09-21', unread:false, icon:'🎨' }
 ];
 const events = [
-  { date:'2026-09-27', title:{ en:'Principal with Grade 12', fr:'Principal avec la Classe 12', it:'Principal con la Classe 12', de:'Principal mit Klasse 12', ru:'Директор с классом 12' } },
-  { date:'2026-09-28', title:{ en:'Principal with Grade 13', fr:'Principal avec la Classe 13', it:'Principal con la Classe 13', de:'Principal mit Klasse 13', ru:'Директор с классом 13' } },
+  { date:'2026-09-28', grades:[12], title:{ en:'Principal with Grade 12', fr:'Principal avec la Classe 12', it:'Principal con la Classe 12', de:'Principal mit Klasse 12', ru:'Директор с классом 12' } },
+  { date:'2026-09-29', grades:[13], title:{ en:'Principal with Grade 13', fr:'Principal avec la Classe 13', it:'Principal con la Classe 13', de:'Principal mit Klasse 13', ru:'Директор с классом 13' } },
   { date:'2026-09-30', title:{ en:'PYP Parent Workshop — Phonics', fr:'Atelier parents PYP — Phonics', it:'Workshop genitori PYP — Phonics', de:'PYP-Elternworkshop — Phonics', ru:'Семинар для родителей PYP — фонетика' } },
-  { date:'2026-10-02', title:{ en:'Grade 4 Sharing Assembly (9:00)', fr:'Assemblée de partage Classe 4 (9h00)', it:'Assemblea di condivisione Classe 4 (9:00)', de:'Austauschversammlung Klasse 4 (9:00)', ru:'Открытый урок класса 4 (9:00)' } },
+  { date:'2026-10-02', grades:[4], title:{ en:'Grade 4 Sharing Assembly (9:00)', fr:'Assemblée de partage Classe 4 (9h00)', it:'Assemblea di condivisione Classe 4 (9:00)', de:'Austauschversammlung Klasse 4 (9:00)', ru:'Открытый урок класса 4 (9:00)' } },
   { date:'2026-10-06', title:{ en:'Book Fair in school', fr:'Foire du livre à l\'école', it:'Book Fair a scuola', de:'Buchmesse in der Schule', ru:'Книжная ярмарка в школе' } },
   { date:'2026-10-13', title:{ en:'Italian curriculum meeting for parents', fr:'Réunion curriculum italien pour les parents', it:'Riunione curriculum italiano per i genitori', de:'Italienisches Curriculum — Elternsprechabend', ru:'Собрание по итальянской программе' } },
-  { date:'2026-10-14', title:{ en:'Trip to Modena — Big Sing, football & volleyball', fr:'Sortie à Modène — Big Sing, football et volley', it:'Gita a Modena — Big Sing, calcio e volley', de:'Ausflug nach Modena — Big Sing, Fußball & Volleyball', ru:'Поездка в Модену — Big Sing, футбол и волейбол' } },
-  { date:'2026-10-16', title:{ en:'Grade 6 Sharing Assembly (9:00)', fr:'Assemblée de partage Classe 6 (9h00)', it:'Assemblea di condivisione Classe 6 (9:00)', de:'Austauschversammlung Klasse 6 (9:00)', ru:'Открытый урок класса 6 (9:00)' } },
-  { date:'2026-10-22', title:{ en:'PYP Halloween Party (14:30–15:30)', fr:'Fête d\'Halloween PYP (14h30–15h30)', it:'Festa di Halloween PYP (14:30–15:30)', de:'PYP-Halloween-Party (14:30–15:30)', ru:'Хэллоуин PYP (14:30–15:30)' } },
+  { date:'2026-10-14', grades:[4,5,6], title:{ en:'Trip to Modena — Big Sing, football & volleyball', fr:'Sortie à Modène — Big Sing, football et volley', it:'Gita a Modena — Big Sing, calcio e volley', de:'Ausflug nach Modena — Big Sing, Fußball & Volleyball', ru:'Поездка в Модену — Big Sing, футбол и волейбол' } },
+  { date:'2026-10-16', grades:[6], title:{ en:'Grade 6 Sharing Assembly (9:00)', fr:'Assemblée de partage Classe 6 (9h00)', it:'Assemblea di condivisione Classe 6 (9:00)', de:'Austauschversammlung Klasse 6 (9:00)', ru:'Открытый урок класса 6 (9:00)' } },
+  { date:'2026-10-22', grades:[1,2,3,4,5], title:{ en:'PYP Halloween Party (14:30–15:30)', fr:'Fête d\'Halloween PYP (14h30–15h30)', it:'Festa di Halloween PYP (14:30–15:30)', de:'PYP-Halloween-Party (14:30–15:30)', ru:'Хэллоуин PYP (14:30–15:30)' } },
   { date:'2026-10-23', title:{ en:'Student-Parent-Teacher Conference / Half-term', fr:'Rencontres parents-professeurs / Congés d\'automne', it:'Colloqui studenti-genitori-insegnanti / Vacanze', de:'Schüler-Eltern-Lehrer-Gespräche / Ferien', ru:'Конференция ученик-родитель-учитель / каникулы' } },
-  { date:'2026-11-03', title:{ en:'Grade 11 mock examinations (3–6 Nov)', fr:'Examens blancs Classe 11 (3–6 nov.)', it:'Esami di prova Classe 11 (3–6 nov.)', de:'Klassen-11-Probeklausuren (3.–6. Nov.)', ru:'Пробные экзамены 11 класса (3–6 нояб.)' } }
+  { date:'2026-11-03', grades:[11], title:{ en:'Grade 11 mock examinations (3–6 Nov)', fr:'Examens blancs Classe 11 (3–6 nov.)', it:'Esami di prova Classe 11 (3–6 nov.)', de:'Klassen-11-Probeklausuren (3.–6. Nov.)', ru:'Пробные экзамены 11 класса (3–6 нояб.)' } }
 ];
 
 function fmtDate(iso) {
@@ -595,6 +601,8 @@ function renderWeekly() {
     </div>`).join('') + `</div>`;
 }
 
+let selectedDay = null; // ISO date or null
+
 function renderCalendar() {
   const t = T[lang];
   document.getElementById('cal-heads').innerHTML = t.calHeads.map(h=>`<div class="cal-head">${h}</div>`).join('');
@@ -604,32 +612,50 @@ function renderCalendar() {
   const startOffset = (first.getDay() + 6) % 7; // Monday-first
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
   const daysPrev = new Date(calYear, calMonth, 0).getDate();
-  const eventDates = new Set(events.map(e=>e.date));
+  const g = currentGrade ? +currentGrade : null;
+  const eventDates = new Set(events.filter(e => !e.grades || !g || e.grades.includes(g)).map(e=>e.date));
 
   let html = '';
   for (let i = 0; i < 42; i++) {
     const dayNum = i - startOffset + 1;
-    let cls = 'cal-cell', label;
+    let cls = 'cal-cell', label, iso = null;
     if (dayNum < 1) { label = daysPrev + dayNum; cls += ' dim'; }
     else if (dayNum > daysInMonth) { label = dayNum - daysInMonth; cls += ' dim'; }
     else {
       label = dayNum;
-      const iso = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+      iso = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
       if (eventDates.has(iso)) cls += ' event';
       if (dayNum === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear()) cls += ' today';
+      if (selectedDay === iso) cls += ' selected';
     }
-    html += `<div class="${cls}">${label}</div>`;
+    html += `<div class="${cls}" ${iso ? `onclick="selectDay('${iso}')"` : ''}>${label}</div>`;
   }
   document.getElementById('cal-days').innerHTML = html;
 }
 
+function selectDay(iso) {
+  selectedDay = (selectedDay === iso) ? null : iso;
+  renderCalendar(); renderEvents();
+}
+
 function renderEvents() {
-  document.getElementById('upcoming-events').innerHTML = events.map(e=>{
+  const g = currentGrade ? +currentGrade : null;
+  let visible = events.filter(e => !e.grades || !g || e.grades.includes(g));
+  let title = T[lang].eventsTitle;
+  if (selectedDay) {
+    visible = visible.filter(e => e.date === selectedDay);
+    const [y,m,d] = selectedDay.split('-').map(Number);
+    title = `${T[lang].eventsOn} ${d} ${T[lang].months[m-1]} ${y}`;
+  }
+  const container = document.getElementById('upcoming-events');
+  container.innerHTML = (visible.length ? visible.map(e=>{
     const [y,m,d] = e.date.split('-').map(Number);
     return `<div class="event-row"><div class="bar"></div>
       <div><strong>${e.title[lang]||e.title.en}</strong>
       <div class="date">${d} ${T[lang].months[m-1]} ${y}</div></div></div>`;
-  }).join('');
+  }).join('') : `<div class="empty-state" style="padding:24px 10px">${T[lang].noEvents}</div>`)
+  + (selectedDay ? `<button class="add-btn" onclick="selectedDay=null;renderCalendar();renderEvents()" style="margin-top:10px">✕ ${T[lang].showAllEvents}</button>` : '');
+  document.getElementById('events-heading').textContent = title;
 }
 
 function renderTexts() {
@@ -641,6 +667,7 @@ function renderTexts() {
   set('t-addDoc', t.addDoc); set('t-addComm', t.addComm); set('t-weeklyTitle', t.weeklyTitle);
   set('t-monthlyTitle', t.monthlyTitle); set('t-eventsTitle', t.eventsTitle);
   set('t-canteenTitle', t.canteenTitle);
+  if (!selectedDay) document.getElementById('events-heading').textContent = t.eventsTitle;
   document.querySelectorAll('.tab-btn [data-tab]').forEach(el => {
     el.textContent = { content: t.tabContent, weekly: t.tabWeekly, monthly: t.tabMonthly, canteen: t.tabCanteen }[el.dataset.tab];
   });
@@ -687,10 +714,10 @@ document.getElementById('tabbar').addEventListener('click', e => {
     p.classList.toggle('active', p.id === btn.dataset.panel));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
-document.getElementById('panel-content').classList.add('active');
+document.getElementById('panel-monthly').classList.add('active');
 document.getElementById('grade-select').addEventListener('change', e => {
   currentGrade = e.target.value;
-  renderWeekly();
+  renderWeekly(); renderEvents(); renderCalendar();
 });
 
 renderAll();
